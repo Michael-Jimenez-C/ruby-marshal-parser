@@ -27,6 +27,28 @@ impl RubySymbol {
     fn __repr__(&self) -> String {
         format!("RubySymbol({:?})", self.name)
     }
+
+    fn __eq__(&self, other: &Bound<'_, PyAny>) -> PyResult<bool> {
+        if let Ok(other_sym) = other.downcast::<RubySymbol>() {
+            Ok(self.name == other_sym.borrow().name)
+        } else if let Ok(s) = other.extract::<String>() {
+            Ok(self.name == s)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn __ne__(&self, other: &Bound<'_, PyAny>) -> PyResult<bool> {
+        Ok(!self.__eq__(other)?)
+    }
+
+    fn __hash__(&self) -> isize {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        self.name.hash(&mut hasher);
+        hasher.finish() as isize
+    }
 }
 
 #[pyclass(dict)]
@@ -414,6 +436,20 @@ impl RubyList {
             .ok_or_else(|| pyo3::exceptions::PyIndexError::new_err("list index out of range"))
     }
 
+    fn __setitem__(&mut self, index: isize, value: PyObject, py: Python<'_>) -> PyResult<()> {
+        let idx = if index < 0 {
+            self.items.len() as isize + index
+        } else {
+            index
+        } as usize;
+        if let Some(slot) = self.items.get_mut(idx) {
+            *slot = value.clone_ref(py);
+            Ok(())
+        } else {
+            Err(pyo3::exceptions::PyIndexError::new_err("list assignment index out of range"))
+        }
+    }
+
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
         let parts: PyResult<Vec<String>> = self
             .items
@@ -447,6 +483,10 @@ impl RubyDict {
         }
     }
 
+    fn keys(&self, py: Python<'_>) -> PyResult<Vec<PyObject>> {
+        Ok(self.items.iter().map(|(k, _)| k.clone_ref(py)).collect())
+    }
+
     fn __len__(&self) -> usize {
         self.items.len()
     }
@@ -458,6 +498,17 @@ impl RubyDict {
             }
         }
         Err(pyo3::exceptions::PyKeyError::new_err("key not found"))
+    }
+
+    fn __setitem__(&mut self, key: PyObject, value: PyObject, py: Python<'_>) -> PyResult<()> {
+        for (k, v) in self.items.iter_mut() {
+            if k.bind(py).eq(&key.bind(py))? {
+                *v = value.clone_ref(py);
+                return Ok(());
+            }
+        }
+        self.items.push((key.clone_ref(py), value.clone_ref(py)));
+        Ok(())
     }
 
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
@@ -501,6 +552,26 @@ impl RubyDictWithDefault {
             default: default.unwrap_or_else(|| py.None()),
             ivars: ivars.unwrap_or_else(|| PyDict::new(py).unbind()),
         }
+    }
+
+    fn __getitem__(&self, key: PyObject, py: Python<'_>) -> PyResult<PyObject> {
+        for (k, v) in &self.items {
+            if k.bind(py).eq(&key.bind(py))? {
+                return Ok(v.clone_ref(py));
+            }
+        }
+        Ok(self.default.clone_ref(py))
+    }
+
+    fn __setitem__(&mut self, key: PyObject, value: PyObject, py: Python<'_>) -> PyResult<()> {
+        for (k, v) in self.items.iter_mut() {
+            if k.bind(py).eq(&key.bind(py))? {
+                *v = value.clone_ref(py);
+                return Ok(());
+            }
+        }
+        self.items.push((key.clone_ref(py), value.clone_ref(py)));
+        Ok(())
     }
 }
 
