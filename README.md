@@ -14,7 +14,7 @@ Desde el directorio del proyecto:
 
 ```bash
 uv pip install maturin
-cd r_lib
+cd ruby-marshal-parser
 source "$HOME/.cargo/env"
 ../.venv/bin/maturin develop
 ```
@@ -24,11 +24,11 @@ Esto compila e instala el módulo `r_marshal` directamente en el entorno virtual
 ## Construir un wheel
 
 ```bash
-cd r_lib
+cd ruby-marshal-parser
 maturin build --release
 ```
 
-El `.whl` se genera en `r_lib/target/wheels/`. Puedes instalarlo manualmente con pip:
+El `.whl` se genera en `ruby-marshal-parser/target/wheels/`. Puedes instalarlo manualmente con pip:
 
 ```bash
 pip install target/wheels/r_marshal-*.whl
