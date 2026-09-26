@@ -1,0 +1,15 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "r-marshal"
+version = "0.1.0"
+description = "Parser/serializador Ruby Marshal 4.8 escrito en Rust, expuesto como módulo Python"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+
+[tool.maturin]
+bindings = "pyo3"
+module-name = "r_marshal"
